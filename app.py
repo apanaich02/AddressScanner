@@ -11,6 +11,10 @@ CORS(app)  # Allow frontend access
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+@app.route("/")
+def home():
+    return "Address Scanner API is running!"
+
 def extract_address(image_path):
     """Extract address from an image using OCR"""
     image = Image.open(image_path)

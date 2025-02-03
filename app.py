@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template
 import os
 from PIL import Image
 import pytesseract
@@ -34,10 +34,18 @@ def upload():
     image_file.save(filepath)
 
     try:
-        # Open image and convert it to RGB mode
+        # Open image and convert to RGB (fix HEIC/CMYK issues)
         with Image.open(filepath) as image:
-            image = image.convert("RGB")  # Convert to RGB mode
+            image = image.convert("RGB")
+
+            # Resize image to 50% of original dimensions
+            width, height = image.size
+            new_size = (width // 2, height // 2)
+            image = image.resize(new_size)
+
+            # Run OCR
             extracted_text = pytesseract.image_to_string(image)
+
     except Exception as e:
         extracted_text = f"Error processing image: {str(e)}"
 

@@ -34,8 +34,10 @@ def upload():
     image_file.save(filepath)
 
     try:
-        # Open image and extract text
-        extracted_text = pytesseract.image_to_string(Image.open(filepath))
+        # Open image and convert it to RGB mode
+        with Image.open(filepath) as image:
+            image = image.convert("RGB")  # Convert to RGB mode
+            extracted_text = pytesseract.image_to_string(image)
     except Exception as e:
         extracted_text = f"Error processing image: {str(e)}"
 

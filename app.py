@@ -33,6 +33,12 @@ def upload():
     filepath = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(filepath)
 
+@app.route("/web")
+def web():
+    """Serve the simple frontend for uploading images."""
+    return open("static/index.html").read()
+
+
     extracted_text = extract_text(filepath)
     os.remove(filepath)  # Cleanup temporary file
 

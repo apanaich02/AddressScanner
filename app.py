@@ -2,45 +2,22 @@ from flask import Flask, request, jsonify
 import pytesseract
 import os
 from PIL import Image
-import re
 from flask_cors import CORS
-import cv2
-import numpy as np
 
 app = Flask(__name__)
-CORS(app)  # Allow frontend access
+CORS(app)  # Enable CORS for frontend access
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# 🔹 Set the correct path for Tesseract on Render
+# Set Tesseract Path for Render Deployment
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
-def extract_address(image_path):
-    """Enhance the image and extract address using OCR"""
-    # Load image with OpenCV
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)  # Convert to grayscale
-
-    # Apply thresholding to remove noise
-    image = cv2.threshold(image, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-
-    # Apply dilation and erosion to remove small noise
-    kernel = np.ones((1, 1), np.uint8)
-    image = cv2.dilate(image, kernel, iterations=1)
-    image = cv2.erode(image, kernel, iterations=1)
-
-    # Save preprocessed image temporarily
-    temp_path = "processed_image.png"
-    cv2.imwrite(temp_path, image)
-
-    # OCR with Tesseract
-    text = pytesseract.image_to_string(temp_path)
-
-    # Address extraction using regex (adjust as needed)
-    address_pattern = r"\d+\s[\w\s]+,\s[\w\s]+,\s[A-Z]{2}\s\d{3}\s?\d{1}"
-    addresses = re.findall(address_pattern, text)
-
-    return addresses if addresses else ["No address found"]
+def extract_text(image_path):
+    """Extract all text from an image using Tesseract OCR"""
+    image = Image.open(image_path)
+    text = pytesseract.image_to_string(image)  # No filtering, return raw text
+    return text.strip()  # Strip leading/trailing whitespace
 
 @app.route("/")
 def home():
@@ -48,7 +25,7 @@ def home():
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    """Endpoint to upload an image and extract addresses"""
+    """Upload an image and return extracted text"""
     if "image" not in request.files:
         return jsonify({"error": "No image provided"}), 400
     
@@ -56,10 +33,10 @@ def upload():
     filepath = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(filepath)
 
-    addresses = extract_address(filepath)
-    os.remove(filepath)  # Cleanup
+    extracted_text = extract_text(filepath)
+    os.remove(filepath)  # Cleanup temporary file
 
-    return jsonify({"addresses": addresses})
+    return jsonify({"text": extracted_text})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

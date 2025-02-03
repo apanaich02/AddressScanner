@@ -1,11 +1,9 @@
 from flask import Flask, request, jsonify
 import pytesseract
+import os
 from PIL import Image
 import re
 from flask_cors import CORS
-import os
-os.system("apt-get update && apt-get install -y tesseract-ocr")
-
 
 app = Flask(__name__)
 CORS(app)  # Allow frontend access
@@ -13,9 +11,9 @@ CORS(app)  # Allow frontend access
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-@app.route("/")
-def home():
-    return "Address Scanner API is running!"
+# 🔹 Set the correct path for Tesseract on Render
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+
 
 def extract_address(image_path):
     """Extract address from an image using OCR"""
@@ -27,6 +25,10 @@ def extract_address(image_path):
     addresses = re.findall(address_pattern, text)
 
     return addresses if addresses else ["No address found"]
+
+@app.route("/")
+def home():
+    return "Address Scanner API is running!"
 
 @app.route("/upload", methods=["POST"])
 def upload():

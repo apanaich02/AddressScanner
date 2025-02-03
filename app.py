@@ -15,13 +15,23 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 def extract_text(image_path):
-    """Extract all text from an image using Tesseract OCR"""
+    """Extract all text from an image using Tesseract OCR with optimizations"""
     try:
+        # Open image and resize to reduce memory usage
         image = Image.open(image_path)
-        text = pytesseract.image_to_string(image)
+        image = image.convert("L")  # Convert to grayscale
+        image.thumbnail((800, 800))  # Resize to 800x800 max
+
+        # Run Tesseract OCR with timeout and limited memory
+        text = pytesseract.image_to_string(image, timeout=10)  # 10-second timeout
         return text.strip()
+    
+    except pytesseract.TesseractError as e:
+        return f"Error processing image (Tesseract Timeout): {str(e)}"
+    
     except Exception as e:
         return f"Error processing image: {str(e)}"
+
 
 @app.route("/")
 def home():

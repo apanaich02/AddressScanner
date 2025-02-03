@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
 import pytesseract
-import os
 from PIL import Image
 import re
 from flask_cors import CORS
+import os
+os.system("apt-get update && apt-get install -y tesseract-ocr")
+
 
 app = Flask(__name__)
 CORS(app)  # Allow frontend access

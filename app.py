@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import pytesseract
 import os
 from PIL import Image
@@ -8,6 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 UPLOAD_FOLDER = "uploads"
+STATIC_FOLDER = "static"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Set Tesseract Path for Render Deployment
@@ -26,6 +27,11 @@ def extract_text(image_path):
 def home():
     return "Address Scanner API is running!"
 
+@app.route("/web")
+def web():
+    """Serve the HTML page for uploading images"""
+    return send_file("static/index.html")
+
 @app.route("/upload", methods=["POST"])
 def upload():
     """Upload an image and return extracted text"""
@@ -34,10 +40,9 @@ def upload():
             return jsonify({"error": "No image provided"}), 400
         
         file = request.files["image"]
-        
         if file.filename == "":
             return jsonify({"error": "No selected file"}), 400
-        
+
         filepath = os.path.join(UPLOAD_FOLDER, file.filename)
         file.save(filepath)
 

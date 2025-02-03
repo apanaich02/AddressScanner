@@ -6,7 +6,7 @@
     <title>Image Text Extractor</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        #output { margin-top: 20px; white-space: pre-wrap; }
+        #output { margin-top: 20px; white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; min-height: 50px; }
     </style>
 </head>
 <body>
@@ -14,15 +14,19 @@
     <input type="file" id="imageInput" accept="image/*">
     <button onclick="uploadImage()">Upload</button>
     <h3>Extracted Text:</h3>
-    <pre id="output"></pre>
+    <pre id="output">Waiting for upload...</pre>
 
     <script>
         async function uploadImage() {
             const input = document.getElementById("imageInput");
+            const output = document.getElementById("output");
+
             if (input.files.length === 0) {
                 alert("Please select an image first.");
                 return;
             }
+
+            output.textContent = "Uploading...";
 
             const formData = new FormData();
             formData.append("image", input.files[0]);
@@ -32,13 +36,17 @@
                     method: "POST",
                     body: formData
                 });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+
                 const result = await response.json();
-                document.getElementById("output").textContent = result.text || "No text detected.";
+                output.textContent = result.text || "No text detected.";
             } catch (error) {
-                document.getElementById("output").textContent = "Error uploading image.";
+                output.textContent = "Error uploading image. Try again.";
             }
         }
     </script>
 </body>
 </html>
- 

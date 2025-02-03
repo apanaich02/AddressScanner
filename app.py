@@ -1,35 +1,35 @@
-from flask import Flask, request, jsonify, send_file
-import pytesseract
 import os
+from flask import Flask, request, render_template, jsonify
 from PIL import Image
-from flask_cors import CORS
+import pytesseract
 from pillow_heif import register_heif_opener
 
-# Register HEIC format with PIL
+# Register HEIC/HEIF support
 register_heif_opener()
 
 app = Flask(__name__)
-CORS(app)
-
-UPLOAD_FOLDER = "uploads"
-STATIC_FOLDER = "static"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Set Tesseract Path for Render Deployment
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 def extract_text(image_path):
-    """Extract text from an image using Tesseract OCR with preprocessing."""
+    """Extract text from an image using Tesseract OCR with HEIC support."""
     try:
-        # Open image and convert to grayscale
-        image = Image.open(image_path).convert("L")  
+        # Open image
+        image = Image.open(image_path)
 
-        # Reduce image size to speed up OCR (if larger than 1000x1000)
+        # Convert HEIC images to JPG
+        if image.format in ["HEIC", "HEIF"]:
+            image = image.convert("RGB")  # Convert HEIC to RGB
+            image_path = image_path.replace(".heic", ".jpg")
+            image.save(image_path, "JPEG")  # Save as JPG
+
+        # Convert to grayscale
+        image = image.convert("L")
+
+        # Resize large images to speed up OCR
         max_size = (1000, 1000)
         if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
             image.thumbnail(max_size)
 
-        # Increase contrast for better OCR accuracy
+        # Increase contrast
         image = image.point(lambda x: 0 if x < 160 else 255)
 
         # Save optimized image temporarily
@@ -37,59 +37,47 @@ def extract_text(image_path):
         image.save(temp_path)
 
         # Run OCR with increased timeout
-        text = pytesseract.image_to_string(temp_path, timeout=20)  # 20-second timeout
-        
+        text = pytesseract.image_to_string(temp_path, timeout=20)  # 20 seconds timeout
+
         # Cleanup temporary file
         os.remove(temp_path)
 
         return text.strip()
-    
+
     except pytesseract.TesseractError:
         return "Error processing image: Tesseract process timeout"
-    
+
     except Exception as e:
         return f"Error processing image: {str(e)}"
 
-@app.route("/")
+
+@app.route('/')
 def home():
-    return "Address Scanner API is running!"
+    return render_template('index.html')
 
-@app.route("/web")
-def web():
-    """Serve the HTML page for uploading images"""
-    return send_file("static/index.html")
 
-@app.route("/upload", methods=["POST"])
+@app.route('/upload', methods=['POST'])
 def upload():
-    """Upload an image and return extracted text."""
-    try:
-        if "image" not in request.files:
-            return jsonify({"error": "No image provided"}), 400
+    if 'image' not in request.files:
+        return jsonify({"error": "No image provided"}), 400
 
-        file = request.files["image"]
+    image_file = request.files['image']
+    if image_file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
 
-        if file.filename == "":
-            return jsonify({"error": "No selected file"}), 400
+    # Save the image temporarily
+    filepath = f"uploads/{image_file.filename}"
+    os.makedirs("uploads", exist_ok=True)
+    image_file.save(filepath)
 
-        # Convert HEIC to JPG if needed
-        filename = file.filename
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
+    # Extract text
+    extracted_text = extract_text(filepath)
 
-        if filename.lower().endswith(".heic"):
-            heic_image = Image.open(file)
-            filename = filename.replace(".heic", ".jpg")
-            filepath = os.path.join(UPLOAD_FOLDER, filename)
-            heic_image.save(filepath, format="JPEG")
-        else:
-            file.save(filepath)
+    # Delete image after processing
+    os.remove(filepath)
 
-        extracted_text = extract_text(filepath)
-        os.remove(filepath)  # Cleanup temporary file
+    return jsonify({"text": extracted_text})
 
-        return jsonify({"text": extracted_text})
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+if __name__ == '__main__':
+    app.run(debug=True)
